@@ -10,6 +10,17 @@ import {
   handleUnsupportedMediaError,
 } from "./mainErrors";
 
+export const handleRoomConflictError = (res: Response) =>
+  handleConflictError({
+    errors: [
+      {
+        field: "name",
+        message: { isExist: "you already have a room" },
+      },
+    ],
+    res,
+  });
+
 export const handleLoginError = (res: Response) =>
   handleBadRequestError({
     errors: [
