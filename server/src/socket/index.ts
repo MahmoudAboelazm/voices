@@ -1,7 +1,14 @@
 import { Server } from "http";
 import socketIo from "socket.io";
 import { CLIENT_URL } from "../config/constants";
+import { redisRoomService } from "../redis";
+import { userInRoomError } from "./errors/roomErrors";
 import { socketIsAuth } from "./middlewares/socketIsAuth";
+import { approvedToSpeak } from "./services/approvedToSpeak/approvedToSpeak";
+import { joinedAsListener } from "./services/joinRoom/joinAsListener";
+import { joinedAsSpeaker } from "./services/joinRoom/joinAsSpeaker";
+import { joinRoom } from "./services/joinRoom/joinRoom";
+import { leaveRoom } from "./services/leaveRoom.ts/leaveRoom";
 
 export const socketInit = async (server: Server) => {
   const io = new socketIo.Server(server, {
@@ -14,20 +21,64 @@ export const socketInit = async (server: Server) => {
     const { userId } = socket.data as { userId: string };
     console.log("user connected", userId);
 
-    // Todo << joinRoom  >> /////////////////////////////////////////////////////////////////////
+    let currentRoomId: string;
+    let speakersRoom: string;
+    let listenersRoom: string;
 
-    // Todo << joinedAsSpeaker  >> /////////////////////////////////////////////////////////////////////
+    socket.on("join-room", async (roomId) => {
+      const isUserInRoom = await redisRoomService.isUserInRoom(userId);
+      if (isUserInRoom) {
+        return socket.emit("join-room-error", userInRoomError());
+      }
 
-    // Todo << joinedAsListener  >> /////////////////////////////////////////////////////////////////////
+      const joinedUser = await joinRoom({ userId, roomId, socket });
+      if (!joinedUser) return;
+      currentRoomId = roomId;
+      listenersRoom = `${roomId}Listeners`;
+      speakersRoom = `${roomId}Speakers`;
 
-    // Todo << Request to speak  >> /////////////////////////////////////////////////////////////////////
+      await joinedAsSpeaker({
+        joinedUser,
+        speakersRoom,
+        listenersRoom,
+        io,
+        socket,
+        userId,
+      });
 
-    // Todo << Approved to speak  >> /////////////////////////////////////////////////////////////////////
+      await joinedAsListener({
+        joinedUser,
+        speakersRoom,
+        listenersRoom,
+        io,
+        socket,
+        userId,
+      });
+      return;
+    });
 
-    // Todo << User Left room  >> /////////////////////////////////////////////////////////////////////
+    socket.on("request-to-speak", (socketId) => {
+      io.to(speakersRoom).emit("to-speakers-listener-request-speak", socketId);
+    });
+
+    socket.on(
+      "approved-to-speak",
+      async ({ requesterUserId, requesterSocketId }) => {
+        await approvedToSpeak({
+          requesterUserId,
+          requesterSocketId,
+          socket,
+          userId,
+          io,
+          currentRoomId,
+          listenersRoom,
+        });
+      },
+    );
 
     socket.on("disconnect", async () => {
       console.log("disconnected", userId);
+      await leaveRoom({ currentRoomId, io, userId });
     });
 
     // Todo << Admin remove a speaker  >> /////////////////////////////////////////////////////////////////////
