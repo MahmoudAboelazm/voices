@@ -1,6 +1,6 @@
 import { model, Schema } from "mongoose";
 
-interface RoomModel {
+export interface RoomModel {
   name: string;
   creatorId: string;
   users: string[];
