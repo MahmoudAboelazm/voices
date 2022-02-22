@@ -31,7 +31,6 @@
     "@types/hark": "^1.2.2",
     "@types/node": "16.11.7",
     "@types/react": "17.0.35",
-    "@types/simple-peer": "^9.11.4",
     "autoprefixer": "^10.4.0",
     "babel-jest": "^27.3.1",
     "eslint": "7",
