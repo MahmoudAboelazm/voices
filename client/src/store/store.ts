@@ -4,6 +4,7 @@ import { composeWithDevTools } from "redux-devtools-extension";
 import thunk from "redux-thunk";
 import api from "./middlewares/api";
 import { roomApi } from "./reducers/room/apiReducer/reducer";
+import { roomSocket } from "./reducers/room/socketReducer/reducer";
 import { user } from "./reducers/user/reducer";
 import { shared } from "./reducers/shared/reducer";
 
@@ -11,6 +12,7 @@ const middlewares = [api, thunk];
 const rootReducers = combineReducers({
   user,
   roomApi,
+  roomSocket,
   shared,
 });
 const composeEnhancers =
