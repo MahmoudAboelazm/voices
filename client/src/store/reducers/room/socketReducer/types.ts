@@ -11,6 +11,7 @@ export interface UserRoomType {
   me: boolean;
   peer: Peer;
   socketId: string;
+  muted: boolean;
 }
 
 export interface Room {
@@ -26,6 +27,7 @@ export interface Room {
   io?: Socket;
   muted: boolean;
   micStreamError: boolean;
+  forcePlay: boolean;
 }
 
 export interface ApprovedSpeak {

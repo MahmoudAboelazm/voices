@@ -2,11 +2,15 @@ import { createAction } from "@reduxjs/toolkit";
 import { ApprovedSpeak } from "./types";
 
 export const roomSocketCall = createAction("roomSocketCall");
-export const streamError = createAction("streamError");
-export const stopStream = createAction("stopStream");
 export const meAdmin = createAction("meAdmin");
 export const meSpeaker = createAction("meSpeaker");
+export const forcePlayAudio = createAction("forcePlayAudio");
+export const playAudioForced = createAction("playAudioForced");
+export const roomSocketError = createAction("roomSocketError");
 export const requestSpeak = createAction("requestSpeak");
+export const streamError = createAction("streamError");
+export const pauseResumeStream = createAction("pauseResumeStream");
+export const stopStream = createAction("stopStream");
 
 export const roomSocketSuccess = createAction(
   "roomSocketSuccess",
@@ -59,5 +63,17 @@ export const approvedSpeak = createAction(
   }),
 );
 export const streamSuccess = createAction("streamSuccess", (payload) => ({
+  payload,
+}));
+
+export const isSpeaking = createAction("isSpeaking", (payload) => ({
+  payload,
+}));
+export const isNotSpeaking = createAction("isNotSpeaking", (payload) => ({
+  payload,
+}));
+
+export const micMuted = createAction("micMuted", (payload) => ({ payload }));
+export const micUnmuted = createAction("micUnmuted", (payload) => ({
   payload,
 }));
