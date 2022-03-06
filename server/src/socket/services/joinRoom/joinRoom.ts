@@ -4,11 +4,6 @@ import { roomEndedError } from "../../errors/roomErrors";
 import { formatIds, formatRoom } from "./helpers";
 import { IJoinRoom } from "./types";
 
-// if the user me is listener
-// I don't want requesters
-
-// If me in admins then I need the requester
-//
 export const joinRoom = async ({ roomId, userId, socket }: IJoinRoom) => {
   try {
     const room = await Room.findById(roomId).then(async (foundRoom) => {

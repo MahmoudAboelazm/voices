@@ -1,8 +1,6 @@
 import { Server } from "http";
 import socketIo from "socket.io";
 import { CLIENT_URL } from "../config/constants";
-import { redisRoomService } from "../redis";
-import { userInRoomError } from "./errors/roomErrors";
 import { socketIsAuth } from "./middlewares/socketIsAuth";
 import { approvedToSpeak } from "./services/approvedToSpeak/approvedToSpeak";
 import { joinedAsListener } from "./services/joinRoom/joinAsListener";
@@ -26,11 +24,6 @@ export const socketInit = async (server: Server) => {
     let listenersRoom: string;
 
     socket.on("join-room", async (roomId) => {
-      const isUserInRoom = await redisRoomService.isUserInRoom(userId);
-      if (isUserInRoom) {
-        return socket.emit("join-room-error", userInRoomError());
-      }
-
       const joinedUser = await joinRoom({ userId, roomId, socket });
       if (!joinedUser) return;
       currentRoomId = roomId;

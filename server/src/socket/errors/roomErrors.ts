@@ -11,9 +11,6 @@ export const roomEndedError = () =>
     errors: [{ field: "room", message: { isEnded: "Room is ended" } }],
   });
 
-export const userInRoomError = () =>
-  socketError({
-    errors: [{ field: "room", message: { inRoom: "You already in a room" } }],
-  });
-
 export const unauthError = () => new Error("You have to login");
+
+export const userInRoomError = () => new Error("You already in a room");
