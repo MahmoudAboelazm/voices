@@ -132,11 +132,17 @@ export const roomSocket = createReducer(roomState, {
     if (room.muted) {
       room.listeners.map((l) => l.peer?.emitMute());
       room.requesters.map((r) => r.peer?.emitMute());
-      room.speakers.map((s) => s.peer?.emitMute());
+      room.speakers.map((s) => {
+        if (s.me) s.muted = true;
+        s.peer?.emitMute();
+      });
     } else {
       room.listeners.map((l) => l.peer?.emitUnmute());
       room.requesters.map((r) => r.peer?.emitUnmute());
-      room.speakers.map((s) => s.peer?.emitUnmute());
+      room.speakers.map((s) => {
+        if (s.me) s.muted = false;
+        s.peer?.emitUnmute();
+      });
     }
   },
 
