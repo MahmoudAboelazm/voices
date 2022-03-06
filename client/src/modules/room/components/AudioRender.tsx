@@ -1,8 +1,7 @@
 import hark from "hark";
-import { useRef, useEffect, useState, ErrorInfo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Peer } from "../../../lib/webrtc/peer";
-
 import {
   isNotSpeaking,
   isSpeaking,
