@@ -2,73 +2,86 @@ interface Options {
   initiator: boolean;
   stream?: MediaStream;
 }
-
+interface OnEvent {
+  [k: string]: Function[];
+}
 export class Peer {
   private options: Options = { initiator: true };
-  private peer;
-  private candidate!: RTCIceCandidate | null;
-  private channel;
+  private peer: RTCPeerConnection;
+  private dataChannel: RTCDataChannel | undefined;
+  private candidates: RTCIceCandidate[] = [];
+  private onEvent: OnEvent = {};
   constructor(opt: Options) {
     this.options = opt;
-    const { stream, initiator } = this.options;
 
     this.peer = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-      ],
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    if (stream) {
-      stream.getTracks().forEach((track) => this.peer.addTrack(track, stream));
+    if (this.options.stream) {
+      this.options.stream
+        .getTracks()
+        .forEach((track) => this.peer.addTrack(track, this.options.stream!));
     }
 
-    // For initiator peer
-    if (initiator) {
-      this.channel = this.peer.createDataChannel("dataChannel");
+    // for initiator
+    if (this.options.initiator) {
+      this.dataChannel = this.peer.createDataChannel("dataChannel");
     }
 
-    // For receiver peer
-    if (!initiator) {
+    // for remote peer
+    if (!this.options.initiator) {
       this.peer.ondatachannel = (e) => {
-        this.channel = e.channel;
+        this.dataChannel = e.channel;
       };
     }
-  }
 
-  onSignal(FnCallBack: (signal: string) => any) {
+    const checkIfthereIsChannel = setInterval(() => {
+      if (this.dataChannel) {
+        this.dataChannel.onmessage = (e) => {
+          if (this.onEvent["onMessage"]) {
+            const fnCallBacks = this.onEvent["onMessage"];
+            fnCallBacks.map((fn) => fn(e.data));
+          }
+
+          if (this.onEvent[e.data]) {
+            const fnCallBacks = this.onEvent[e.data];
+            fnCallBacks.map((fn) => fn());
+          }
+        };
+        clearInterval(checkIfthereIsChannel);
+      }
+    }, 1000);
+  }
+  getIceCandidates(signalCallBack: (signal: string) => any) {
+    this.peer.onicecandidate = (e) => {
+      if (e.candidate === null) {
+        const mySignal = {
+          sdp: this.peer.localDescription,
+          candidates: this.candidates,
+        };
+        signalCallBack(JSON.stringify(mySignal));
+        return;
+      }
+
+      this.candidates.push(e.candidate);
+    };
+  }
+  onSignal(fnCallBack: (signal: string) => any) {
     try {
       if (this.options.initiator) {
         this.peer.createOffer().then((offer) => {
-          this.peer.setLocalDescription(offer).then(() => {
-            this.peer.onicecandidate = (e) => {
-              if (!this.candidate) {
-                this.candidate = e.candidate;
-                const mySignal = {
-                  sdp: this.peer.localDescription,
-                  candidate: this.candidate,
-                };
-                FnCallBack(JSON.stringify(mySignal));
-              }
-            };
-          });
+          this.peer
+            .setLocalDescription(offer)
+            .then(() => this.getIceCandidates(fnCallBack));
         });
       }
 
       if (!this.options.initiator) {
         this.peer.createAnswer().then((answer) => {
-          this.peer.setLocalDescription(answer).then(() => {
-            this.peer.onicecandidate = (e) => {
-              if (!this.candidate) {
-                this.candidate = e.candidate;
-                const mySignal = {
-                  sdp: this.peer.localDescription,
-                  candidate: this.candidate,
-                };
-                FnCallBack(JSON.stringify(mySignal));
-              }
-            };
-          });
+          this.peer
+            .setLocalDescription(answer)
+            .then(() => this.getIceCandidates(fnCallBack));
         });
       }
     } catch (error: any) {
@@ -78,36 +91,49 @@ export class Peer {
 
   async setSignal(signal: string) {
     try {
-      const signalObj = await JSON.parse(signal);
-      this.peer
-        .setRemoteDescription(signalObj.sdp)
-        .then(() =>
-          this.peer.addIceCandidate(new RTCIceCandidate(signalObj.candidate)),
-        );
+      const signalObj: {
+        sdp: RTCSessionDescription;
+        candidates: RTCIceCandidate[];
+      } = await JSON.parse(signal);
+
+      this.peer.setRemoteDescription(signalObj.sdp).then(() => {
+        signalObj.candidates.forEach((c) => {
+          this.peer.addIceCandidate(new RTCIceCandidate(c));
+        });
+      });
     } catch (error: any) {
       console.log("setSignal Error: ", error.message);
     }
   }
-  onStream(FnCallBack: (stream: MediaStream) => any) {
-    this.peer.ontrack = (e) => FnCallBack(e.streams[0]);
+  onStream(fnCallBack: (stream: MediaStream) => any) {
+    this.peer.ontrack = (e) => fnCallBack(e.streams[0]);
   }
 
-  onMessage(FnCallBack: (message: string) => any) {
-    const checkIfthereIsChannel = setInterval(() => {
-      if (this.channel) {
-        this.channel.onmessage = (e) => FnCallBack(e.data);
-        clearInterval(checkIfthereIsChannel);
-      }
-    }, 1000);
+  // to listen for all messages and events.
+  onMessage(fnCallBack: (message: string) => any) {
+    if (this.onEvent["onMessage"]) {
+      this.onEvent["onMessage"].push(fnCallBack);
+    } else {
+      this.onEvent["onMessage"] = [fnCallBack];
+    }
   }
 
-  emitMute() {
-    if (this.channel) this.channel.send("mute");
+  // to listen for a special event
+  on(event: string, fnCallBack: () => any) {
+    if (this.onEvent[event]) {
+      this.onEvent[event].push(fnCallBack);
+    } else {
+      this.onEvent[event] = [fnCallBack];
+    }
   }
 
-  emitUnmute() {
-    if (this.channel) this.channel.send("unmute");
+  // to emit messages and events
+  emit(msg: string) {
+    if (this.dataChannel) {
+      if (this.dataChannel.readyState === "open") this.dataChannel.send(msg);
+    }
   }
+
   close() {
     this.peer.close();
   }
